@@ -1,4 +1,4 @@
-// import { getQuestion } from "./getQuestions";
+import { getQuestion } from "./getQuestions";
 
 // import axios from "axios";
 
@@ -18,29 +18,10 @@ let previousScore = 0;
 let countDownDate;
 var flag = 0;
 let questions = [];
-// const qsn = JSON.parse($("#questions-sec").html());
-// console.log(questions);
-
-// Functions
-
-const getQuestion = async () => {
-  try {
-    const result = await axios({
-      method: "GET",
-      url: "/api/v1/ques",
-    });
-    let questionsResult = result.data.data.data;
-    questions = questionsResult;
-
-    //
-  } catch (error) {
-    console.log(error);
-  }
-};
 
 // On the load of the window
 window.addEventListener("load", async () => {
-  await getQuestion();
+  questions = await getQuestion();
 });
 
 function beginCountdown() {
