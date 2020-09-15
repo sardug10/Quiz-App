@@ -2,13 +2,18 @@
 
 const express = require("express");
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
+const morgan = require("morgan");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
 const path = require("path");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
 
 //requiring local files
-const quesRouter = require("./routes/quesRouter");
 const viewRouter = require("./routes/viewRouter");
+const quizRouter = require("./routes/quizRouter");
+const globalErrorHandler = require("./controller/error");
+const userRouter = require("./routes/userRouter");
 
 const app = express();
 
@@ -18,73 +23,44 @@ app.use(bodyParser.urlencoded({ extended: true }));
 //setting up the middleware for the static files
 app.use(express.static(path.join(__dirname, "public")));
 
-mongoose.connect(
-  "mongodb+srv://admin-anand:Mongod123@cluster0-ut4en.mongodb.net/quesDB",
-  { useNewUrlParser: true, useUnifiedTopology: true }
-);
+//Development loging
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
-// var vals,ques1,a1=false,a2=false,a3=false,a4=false;
+//BEFORE body-parser
+app.post("/webhook-checkout", bodyParser.raw({ type: "application/json" }));
 
-// console.log(ques1);
+// Body parser, reading data from body into req.body
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+app.use(cookieParser());
 
-//setting up the middleware for questions
-app.use("/api/v1/ques", quesRouter);
+//Test middleware
+app.use((req, res, next) => {
+  req.time = new Date().toISOString();
+  console.log(req.cookies);
+  next();
+});
 
 //setting up middleware for rendering home page
 app.use("/", viewRouter);
 
-app.get("/add", function (req, res) {
-  res.render("addQues");
+//setting up the middleware for adding the questions
+app.use("/api/quiz", quizRouter);
+
+//setting up middleware for sign-up
+app.use("/api/user", userRouter);
+
+//route middleware for all the undefined routes
+app.all("*", (req, res, next) => {
+  const err = new Error(`cannot find ${req.originalUrl} on the server!!`);
+  err.status = "fail";
+  err.statusCode = 404;
+
+  next(err);
 });
 
-app.post("/add", function (req, res) {
-  console.log(req.body);
-  const question = req.body.question;
-  const option1 = req.body.answer1;
-  const option2 = req.body.answer2;
-  const option3 = req.body.answer3;
-  const option4 = req.body.answer4;
-  const ans = req.body.val;
-  if (ans == "ans1") {
-    a1 = true;
-  } else if (ans == "ans2") {
-    a2 = true;
-  } else if (ans == "ans3") {
-    a3 = true;
-  } else if (ans == "ans4") {
-    a4 = true;
-  }
-  const ques = new Ques({
-    question: question,
-    answers: [
-      {
-        text: option1,
-        correct: a1,
-      },
-      {
-        text: option2,
-        correct: a2,
-      },
-      {
-        text: option3,
-        correct: a3,
-      },
-      {
-        text: option4,
-        correct: a4,
-      },
-    ],
-  });
-  // console.log(ques);
-  ques.save(function (err, result) {
-    if (err) {
-      res.send("fail");
-    } else {
-      res.send("success");
-    }
-  });
-});
+app.use(globalErrorHandler);
 
-app.listen(process.env.PORT || 3000, function () {
-  console.log("Started...");
-});
+module.exports = app;
